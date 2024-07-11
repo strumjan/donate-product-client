@@ -30,6 +30,11 @@ function dpc_deactivate() {
 register_activation_hook(__FILE__, 'dpc_create_virtual_product');
 
 function dpc_create_virtual_product() {
+    // Check if WooCommerce is active
+    if (!class_exists('WooCommerce')) {
+        return; // WooCommerce is not active, do not create the product
+    }
+
     if (get_option('dpc_virtual_product_id')) {
         return; // Product already exists
     }
@@ -45,7 +50,6 @@ function dpc_create_virtual_product() {
 
     update_option('dpc_virtual_product_id', $product->get_id());
 }
-
 // Register settings page
 add_action('admin_menu', 'dpc_register_settings_page');
 
@@ -59,6 +63,11 @@ add_action('update_option_dpc_host_url', 'dpc_create_virtual_product_if_not_exis
 add_action('update_option_dpc_client_key', 'dpc_create_virtual_product_if_not_exists');
 
 function dpc_create_virtual_product_if_not_exists() {
+    // Check if WooCommerce is active
+    if (!class_exists('WooCommerce')) {
+        return; // WooCommerce is not active, do not create the product
+    }
+
     if (!get_option('dpc_virtual_product_id')) {
         dpc_create_virtual_product();
     }
@@ -158,156 +167,187 @@ function dpc_fetch_campaign_data() {
     return json_decode($body, true);
 }
 
-// Hook into WooCommerce checkout
-add_action('woocommerce_review_order_before_order_total', 'dpc_add_donation_product');
+// Check if WooCommerce exist
+add_action('plugins_loaded', 'dpc_check_woocommerce');
 
-function dpc_add_donation_product() {
-    $campaign_data = dpc_fetch_campaign_data();
+function dpc_check_woocommerce() {
+if ( class_exists( 'WooCommerce' ) ) {
+    //error_log('Ima WooCommerce!');
+    // Hook into WooCommerce checkout
+    add_action('woocommerce_review_order_before_order_total', 'dpc_add_donation_product');
 
-    if ($campaign_data) {
-        $campaign_name = $campaign_data['campaign_name'];
-        $product_id = $campaign_data['product_id'];
-        $product_price = $campaign_data['product_price'];
-        $max_quantity = isset($campaign_data['required_quantity']) ? intval($campaign_data['required_quantity']) : 0;
-
-        if ($max_quantity > 0) {
-            echo '<tr class="donation_product">
-                    <th>' . esc_html($campaign_name) . '</th>
-                    <td>
-                        <input type="checkbox" id="add_donation_product" name="add_donation_product" onchange="checkboxAction();" value="' . esc_attr($product_id) . '" data-price="' . esc_attr($product_price) . '">
-                        <input type="number" id="donation_product_quantity" name="donation_product_quantity" onchange="updateTotal();" min="1" max="' . esc_attr($max_quantity) . '" value="1" style="width: 60px; margin-left: 10px;" disabled>
-                        ' . wc_price($product_price) . '
-                    </td>
-                  </tr>';
-        }
-    }
-}
-
-// Enqueue the script for adding donation product price in total
-add_action('wp_enqueue_scripts', 'dpc_enqueue_scripts');
-
-function dpc_enqueue_scripts() {
-    if (is_checkout()) {
-        wp_enqueue_script('dpc_donation_product', plugins_url('/dpc-donation-product.js', __FILE__), array('jquery'), null, true);
-        wp_localize_script('dpc_donation_product', 'wc_price_params', array(
-            'currency_format_num_decimals' => get_option('woocommerce_price_num_decimals'),
-            'currency_format_symbol'       => get_woocommerce_currency_symbol()
-        ));
-    }
-}
-
-// Add donate product in order
-add_action('woocommerce_checkout_create_order', 'dpc_add_donation_product_to_order', 20, 1);
-
-function dpc_add_donation_product_to_order($order) {
-    if (isset($_POST['add_donation_product']) && $_POST['add_donation_product']) {
-        $product_id = get_option('dpc_virtual_product_id');
-        $product_quantity = isset($_POST['donation_product_quantity']) ? intval($_POST['donation_product_quantity']) : 1;
-
-        // Fetch the campaign data
+    function dpc_add_donation_product() {
         $campaign_data = dpc_fetch_campaign_data();
 
         if ($campaign_data) {
-            $product_name = $campaign_data['campaign_name'];
-            $product_price = floatval($campaign_data['product_price']);
+            $campaign_name = $campaign_data['campaign_name'];
+            $product_id = $campaign_data['product_id'];
+            $product_price = $campaign_data['product_price'];
+            $max_quantity = isset($campaign_data['required_quantity']) ? intval($campaign_data['required_quantity']) : 0;
 
-            // Create a new order item for the donation product
-            $item = new WC_Order_Item_Product();
-            $item->set_product_id($product_id);
-            $item->set_name($product_name);
-            $item->set_quantity($product_quantity);
-            $item->set_total($product_price * $product_quantity);
-            $item->add_meta_data('_donation_product', 'yes', true);
-            $item->add_meta_data('_donation_product_quantity', sanitize_text_field($_POST['donation_product_quantity']), true);
-
-            // Add the item to the order
-            $order->add_item($item);
-        }
-    }
-}
-
-
-// Add donation product to cart as a fee
-add_action('woocommerce_cart_calculate_fees', 'dpc_add_donation_product_to_cart');
-
-function dpc_add_donation_product_to_cart() {
-    if (isset($_POST['add_donation_product']) && !empty($_POST['add_donation_product'])) {
-        $campaign_data = dpc_fetch_campaign_data();
-
-        if ($campaign_data) {
-            $product_price = floatval($campaign_data['product_price']);
-            WC()->cart->add_fee(__('Donation', 'donate-product-client'), $product_price);// Tuka kako da fali kolichina
-        }
-    }
-}
-
-// Hook into WooCommerce order placement
-add_action('woocommerce_thankyou', 'dpc_handle_order_placement');
-
-function dpc_handle_order_placement($order_id) {
-    //error_log("dpc_handle_order_placement executed with order ID: " . $order_id);
-    $order = wc_get_order($order_id);
-
-    $donated_quantity = 0;
-    $donation_product_added = false;
-
-    foreach ($order->get_items() as $item_id => $item) {
-        if ($item->get_meta('_donation_product') === 'yes') {
-            $donation_product_added = true;
-            $donated_quantity = intval($item->get_meta('_donation_product_quantity'));
-            break;
-        }
-    }
-
-    if ($donation_product_added && $donated_quantity > 0) {
-        //error_log("Donation product was added to the order.");
-
-        $campaign_data = dpc_fetch_campaign_data();
-
-        if ($campaign_data) {
-            $client_domain = str_replace('.', '_', $_SERVER['HTTP_HOST']);
-            $client_key = get_option('dpc_client_key'); // se koristi za JWT token
-
-            //error_log("Parameters: client_domain = $client_domain, client_key = $client_key, donated_quantity = $donated_quantity");
-
-            // Update JSON quantity on the host server
-            $response = wp_remote_post(get_option('dpc_host_url') . '/wp-json/donate-product-host/v1/update_quantity', array(
-                'method' => 'POST',
-                'sslverify' => false,
-                'headers' => array(
-                    'Authorization' => 'Bearer ' . $client_key,
-                    'Content-Type' => 'application/json',
-                ),
-                'body' => json_encode(array(
-                    'client_domain' => $client_domain,
-                    'donated_quantity' => $donated_quantity,
-                )),
-            ));
-
-            if (is_wp_error($response)) {
-                $error_message = $response->get_error_message();
-                //error_log("Failed to update the JSON file: " . $error_message);
-            } else {
-                $response_body = json_decode(wp_remote_retrieve_body($response), true);
-                //error_log("Response body: " . print_r($response_body, true));
+            if ($max_quantity > 0) {
+                echo '<tr class="donation_product">
+                        <th>' . esc_html($campaign_name) . '</th>
+                        <td>
+                            <input type="checkbox" id="add_donation_product" name="add_donation_product" onchange="checkboxAction();" value="' . esc_attr($product_id) . '" data-price="' . esc_attr($product_price) . '">
+                            <input type="number" id="donation_product_quantity" name="donation_product_quantity" onchange="updateTotal();" min="1" max="' . esc_attr($max_quantity) . '" value="1" style="width: 60px; margin-left: 10px;" disabled>
+                            ' . wc_price($product_price) . '
+                        </td>
+                    </tr>';
             }
-
-            // Send email notification to host
-            $to = sanitize_email($campaign_data['host_email']);
-            $subject = __('New Donation Order', 'donate-product-client');
-            $body = sprintf(__('Order ID: %s', 'donate-product-client'), $order->get_order_number());
-            $body .= "\n" . sprintf(__('Customer Name: %s', 'donate-product-client'), $order->get_billing_first_name() . ' ' . $order->get_billing_last_name());
-            $body .= "\n" . sprintf(__('Customer Email: %s', 'donate-product-client'), $order->get_billing_email());
-
-            wp_mail($to, $subject, $body);
-        } else {
-            //error_log("Campaign data not found.");
         }
-    } else {
-        //error_log("Donation product not found in the order or donated quantity is zero.");
+    }
+
+    // Enqueue the script for adding donation product price in total
+    add_action('wp_enqueue_scripts', 'dpc_enqueue_scripts');
+
+    function dpc_enqueue_scripts() {
+        if (is_checkout()) {
+            wp_enqueue_script('dpc_donation_product', plugins_url('/dpc-donation-product.js', __FILE__), array('jquery'), null, true);
+            wp_localize_script('dpc_donation_product', 'wc_price_params', array(
+                'currency_format_num_decimals' => get_option('woocommerce_price_num_decimals'),
+                'currency_format_symbol'       => get_woocommerce_currency_symbol()
+            ));
+        }
+    }
+
+    // Add donate product in order
+    add_action('woocommerce_checkout_create_order', 'dpc_add_donation_product_to_order', 20, 1);
+
+    function dpc_add_donation_product_to_order($order) {
+        if (isset($_POST['add_donation_product']) && $_POST['add_donation_product']) {
+            $product_id = get_option('dpc_virtual_product_id');
+            $product_quantity = isset($_POST['donation_product_quantity']) ? intval($_POST['donation_product_quantity']) : 1;
+
+            // Fetch the campaign data
+            $campaign_data = dpc_fetch_campaign_data();
+
+            if ($campaign_data) {
+                $product_name = $campaign_data['campaign_name'];
+                $product_price = floatval($campaign_data['product_price']);
+
+                // Create a new order item for the donation product
+                $item = new WC_Order_Item_Product();
+                $item->set_product_id($product_id);
+                $item->set_name($product_name);
+                $item->set_quantity($product_quantity);
+                $item->set_total($product_price * $product_quantity);
+                $item->add_meta_data('_donation_product', 'yes', true);
+                $item->add_meta_data('_donation_product_quantity', sanitize_text_field($_POST['donation_product_quantity']), true);
+
+                // Add the item to the order
+                $order->add_item($item);
+            }
+        }
+    }
+
+
+    // Add donation product to cart as a fee
+    add_action('woocommerce_cart_calculate_fees', 'dpc_add_donation_product_to_cart');
+
+    function dpc_add_donation_product_to_cart() {
+        if (isset($_POST['add_donation_product']) && !empty($_POST['add_donation_product'])) {
+            $campaign_data = dpc_fetch_campaign_data();
+
+            if ($campaign_data) {
+                $product_price = floatval($campaign_data['product_price']);
+                WC()->cart->add_fee(__('Donation', 'donate-product-client'), $product_price);// Tuka kako da fali kolichina
+            }
+        }
+    }
+
+    // Hook into WooCommerce order placement
+    add_action('woocommerce_thankyou', 'dpc_handle_order_placement');
+
+    function dpc_handle_order_placement($order_id) {
+        //error_log("dpc_handle_order_placement executed with order ID: " . $order_id);
+        $order = wc_get_order($order_id);
+
+        $donated_quantity = 0;
+        $donation_product_added = false;
+
+        foreach ($order->get_items() as $item_id => $item) {
+            if ($item->get_meta('_donation_product') === 'yes') {
+                $donation_product_added = true;
+                $donated_quantity = intval($item->get_meta('_donation_product_quantity'));
+                break;
+            }
+        }
+
+        if ($donation_product_added && $donated_quantity > 0) {
+            //error_log("Donation product was added to the order.");
+
+            $campaign_data = dpc_fetch_campaign_data();
+
+            if ($campaign_data) {
+                $client_domain = str_replace('.', '_', $_SERVER['HTTP_HOST']);
+                $client_key = get_option('dpc_client_key'); // se koristi za JWT token
+
+                //error_log("Parameters: client_domain = $client_domain, client_key = $client_key, donated_quantity = $donated_quantity");
+
+                // Update JSON quantity on the host server
+                $response = wp_remote_post(get_option('dpc_host_url') . '/wp-json/donate-product-host/v1/update_quantity', array(
+                    'method' => 'POST',
+                    'sslverify' => false,
+                    'headers' => array(
+                        'Authorization' => 'Bearer ' . $client_key,
+                        'Content-Type' => 'application/json',
+                    ),
+                    'body' => json_encode(array(
+                        'client_domain' => $client_domain,
+                        'donated_quantity' => $donated_quantity,
+                    )),
+                ));
+
+                if (is_wp_error($response)) {
+                    $error_message = $response->get_error_message();
+                    //error_log("Failed to update the JSON file: " . $error_message);
+                } else {
+                    $response_body = json_decode(wp_remote_retrieve_body($response), true);
+                    //error_log("Response body: " . print_r($response_body, true));
+                }
+
+                // Send email notification to host
+                $to = sanitize_email($campaign_data['host_email']);
+                $subject = __('New Donation Order', 'donate-product-client');
+                $body = sprintf(__('Order ID: %s', 'donate-product-client'), $order->get_order_number());
+                $body .= "\n" . sprintf(__('Customer Name: %s', 'donate-product-client'), $order->get_billing_first_name() . ' ' . $order->get_billing_last_name());
+                $body .= "\n" . sprintf(__('Customer Email: %s', 'donate-product-client'), $order->get_billing_email());
+
+                wp_mail($to, $subject, $body);
+            } else {
+                //error_log("Campaign data not found.");
+            }
+        } else {
+            //error_log("Donation product not found in the order or donated quantity is zero.");
+        }
+    }
+} else {
+    //error_log('Nema WooCommerce');
+    // Function to generate donation button
+    function dpc_generate_donation_button() {
+        $campaign_data = dpc_fetch_campaign_data();
+
+        if ($campaign_data) {
+            $host_checkout_page = $campaign_data['host_checkout_page'];
+            $product_id = $campaign_data['product_id'];
+            //$product_quantity = isset($_POST['donation_product_quantity']) ? intval($_POST['donation_product_quantity']) : 1;
+            $donation_link = $host_checkout_page . $product_id;
+
+            echo '<a href="' . esc_url($donation_link) . '" class="button">' . __('Donate Now', 'donate-product-client') . '</a>';
+        }
+    }
+
+    // Display donation button in the front-end
+    add_action('wp_footer', 'dpc_display_donation_button');
+
+    function dpc_display_donation_button() {
+        if (is_page()) {
+            dpc_generate_donation_button();
+        }
     }
 }
-
+}
 
 
 // Add settings link on plugin page
