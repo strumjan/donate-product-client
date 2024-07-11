@@ -236,7 +236,7 @@ function dpc_add_donation_product_to_cart() {
 
         if ($campaign_data) {
             $product_price = floatval($campaign_data['product_price']);
-            WC()->cart->add_fee(__('Donation', 'donate-product-client'), $product_price);
+            WC()->cart->add_fee(__('Donation', 'donate-product-client'), $product_price);// Tuka kako da fali kolichina
         }
     }
 }
@@ -292,8 +292,8 @@ function dpc_handle_order_placement($order_id) {
                 //error_log("Response body: " . print_r($response_body, true));
             }
 
-            // Send email notification to client
-            $to = sanitize_email($campaign_data['client_email']);
+            // Send email notification to host
+            $to = sanitize_email($campaign_data['host_email']);
             $subject = __('New Donation Order', 'donate-product-client');
             $body = sprintf(__('Order ID: %s', 'donate-product-client'), $order->get_order_number());
             $body .= "\n" . sprintf(__('Customer Name: %s', 'donate-product-client'), $order->get_billing_first_name() . ' ' . $order->get_billing_last_name());
