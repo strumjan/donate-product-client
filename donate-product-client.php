@@ -144,7 +144,13 @@ function dpc_fetch_campaign_data() {
     }
 
     $client_domain = str_replace('.', '_', $_SERVER['HTTP_HOST']);
-    $client_key_short = substr($client_key, 0, 8);
+    // Split the JWT into its three parts
+    // Split the JWT into its three parts
+    list($header, $payload, $signature) = explode('.', $client_key);
+
+    // Get the first 8 characters of the signature directly
+    $client_key_short = substr($signature, 0, 8);
+
     $json_url = "{$host_url}/wp-content/plugins/donate-product-host/campaigns/{$client_domain}_{$client_key_short}.json";
 
     // Set the admin notice to display the JSON URL
@@ -282,6 +288,8 @@ if ( class_exists( 'WooCommerce' ) ) {
             if ($campaign_data) {
                 $client_domain = str_replace('.', '_', $_SERVER['HTTP_HOST']);
                 $client_key = get_option('dpc_client_key'); // se koristi za JWT token
+                $campaign_name = $campaign_data['campaign_name'];
+                $required_quantity = $campaign_data['required_quantity'];
 
                 //error_log("Parameters: client_domain = $client_domain, client_key = $client_key, donated_quantity = $donated_quantity");
 
@@ -296,6 +304,8 @@ if ( class_exists( 'WooCommerce' ) ) {
                     'body' => json_encode(array(
                         'client_domain' => $client_domain,
                         'donated_quantity' => $donated_quantity,
+                        'campaign_name' => $campaign_name,
+                        'required_quantity' => $required_quantity,
                     )),
                 ));
 
