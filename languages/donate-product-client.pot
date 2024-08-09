@@ -1,0 +1,108 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Donate Product Client\n"
+"POT-Creation-Date: 2024-08-08 07:56+0200\n"
+"PO-Revision-Date: 2024-07-24 08:47+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.4\n"
+"X-Poedit-Basepath: ..\n"
+"X-Poedit-KeywordsList: __;_e\n"
+"X-Poedit-SearchPath-0: donate-product-client.php\n"
+
+#: donate-product-client.php:85
+msgid "Donate Product Client Settings"
+msgstr ""
+
+#: donate-product-client.php:86
+msgid "This is the client part for the Donate Product component. Through it you can include a product donation on your site. From the donor of the donation, you will receive a client key that is made especially for you."
+msgstr ""
+
+#: donate-product-client.php:86
+msgid "If you have WooCommerce integrated then the donated product will appear on the checkout page above the total."
+msgstr ""
+
+#: donate-product-client.php:86
+msgid "If you don't have WooCommerce integrated then the component generates a \"Donate Now\" button that takes the customer directly to the donor page where they can make the donation."
+msgstr ""
+
+#: donate-product-client.php:107 donate-product-client.php:431
+#: donate-product-client.php:440
+msgid "Settings"
+msgstr ""
+
+#: donate-product-client.php:109
+msgid "Host URL"
+msgstr ""
+
+#: donate-product-client.php:110
+msgid "Client Key"
+msgstr ""
+
+#: donate-product-client.php:111
+msgid "Conversion Rate"
+msgstr ""
+
+#: donate-product-client.php:114
+msgid "Donation Shortcode"
+msgstr ""
+
+#: donate-product-client.php:124
+msgid "Enter the domain where the product being donated comes from, in the format https://example.com"
+msgstr ""
+
+#: donate-product-client.php:130
+msgid "Enter the client key that was generated specifically for you. Ask for it from the offerer of the donation."
+msgstr ""
+
+#: donate-product-client.php:136
+msgid "Enter the currency conversion rate if you have a different currency than the donation hosting. For example: 61.4"
+msgstr ""
+
+#: donate-product-client.php:153
+msgid "Copy"
+msgstr ""
+
+#: donate-product-client.php:154
+msgid "Use this shortcode to display the donation button on any page."
+msgstr ""
+
+#: donate-product-client.php:167
+msgid "Shortcode copied to clipboard"
+msgstr ""
+
+#: donate-product-client.php:192
+msgid "Donate Now"
+msgstr ""
+
+#: donate-product-client.php:345
+msgid "Donation"
+msgstr ""
+
+#: donate-product-client.php:410
+#, php-format
+msgid "Order ID: %s"
+msgstr ""
+
+#: donate-product-client.php:411
+msgid "Donation: "
+msgstr ""
+
+#: donate-product-client.php:412
+#, php-format
+msgid "Donor Name: %s"
+msgstr ""
+
+#: donate-product-client.php:413
+#, php-format
+msgid "Donor Email: %s"
+msgstr ""
+
+#: donate-product-client.php:432
+msgid "You don't have WooCommerce. But you can still participate in sharing donations! Use the shortcode you can find here: "
+msgstr ""
