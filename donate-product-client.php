@@ -183,13 +183,15 @@ add_shortcode('dpc_donation_button', 'dpc_donation_button_shortcode');
 function dpc_generate_donation_button() {
     $campaign_data = dpc_fetch_campaign_data();
 
-    if ($campaign_data) {
+    if ($campaign_data &&  $campaign_data['campaign_archive'] == 0) {
         $host_checkout_page = $campaign_data['host_checkout_page'];
         $product_id = $campaign_data['product_id'];
         //$product_quantity = isset($_POST['donation_product_quantity']) ? intval($_POST['donation_product_quantity']) : 1;
         $donation_link = $host_checkout_page . $product_id;
 
         echo '<a href="' . esc_url($donation_link) . '" class="button">' . __('Donate Now', 'donate-product-client') . '</a>';
+    } else {
+        echo __('No active campaign.', 'donate-product-client') ;
     }
 }
 
@@ -269,7 +271,7 @@ if ( class_exists( 'WooCommerce' ) ) {
     function dpc_add_donation_product() {
         $campaign_data = dpc_fetch_campaign_data();
 
-        if ($campaign_data) {
+        if ($campaign_data &&  $campaign_data['campaign_archive'] == 0) {
             $campaign_name = $campaign_data['campaign_name'];
             $product_id = $campaign_data['product_id'];
             $product_price = $campaign_data['product_price']*get_option('dpc_conversion_rate');
